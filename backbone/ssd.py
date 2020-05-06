@@ -24,9 +24,9 @@ from tensorflow.keras.layers import Input, Lambda, Conv2D, MaxPooling2D, BatchNo
 from tensorflow.keras.regularizers import l2
 import tensorflow.keras.backend as K
 
-from keras_layers.keras_layer_AnchorBoxes import AnchorBoxes
-from keras_layers.keras_layer_DecodeDetections import DecodeDetections
-from keras_layers.keras_layer_DecodeDetectionsFast import DecodeDetectionsFast
+from keras_layers.keras_layer_ssd_AnchorBoxes import AnchorBoxes
+from keras_layers.keras_layer_ssd_DecodeDetections import DecodeDetections
+from keras_layers.keras_layer_ssd_DecodeDetectionsFast import DecodeDetectionsFast
 
 def build_model(image_size,
                 n_classes,
