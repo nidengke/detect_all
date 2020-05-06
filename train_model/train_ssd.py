@@ -1,3 +1,6 @@
+import os,sys
+os.environ["CUDA_VISIABLE_DEVICES"]="3"
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath("__file__"))))
 from math import ceil
 import numpy as np
 from matplotlib import pyplot as plt
@@ -13,8 +16,8 @@ from keras_layers.keras_layer_ssd_DecodeDetectionsFast import DecodeDetectionsFa
 from keras_layers.keras_layer_ssd_AnchorBoxes import AnchorBoxes
 from keras_layers.keras_layer_ssd_L2Normalization import L2Normalization
 
-from encoder_decoder.ssd_encoder_decoder.ssd_input_encode import SSDInputEncoder
-from encoder_decoder.ssd_encoder_decoder.ssd_output_decode import decode_detections, decode_detections_fast
+from encoder_decoder.ssd_encoder_decoder.ssd_input_encoder import SSDInputEncoder
+from encoder_decoder.ssd_encoder_decoder.ssd_output_decoder import decode_detections, decode_detections_fast
 
 from datasets.ssd_data_generate.object_detection_2d_data_generator import DataGenerator
 from datasets.ssd_data_generate.object_detection_2d_geometric_ops import Resize
@@ -33,7 +36,7 @@ model = build_vgg_ssd300_model(image_size,
                                l2_regularization=vgg_config.l2_regularization,
                                min_scale=None,
                                max_scale=None,
-                               scales=None,
+                               scales=vgg_config.scales,
                                aspect_ratios_global=None,
                                aspect_ratios_per_layer=vgg_config.aspect_ratios,
                                two_boxes_for_ar1=vgg_config.two_boxes_for_ar1,
@@ -79,21 +82,21 @@ val_dataset = DataGenerator(load_images_into_memory=False, hdf5_dataset_path=Non
 # 5: 设置数据集路径.
 
 # The directories that contain the images.
-VOC_2007_images_dir = '../../datasets/VOCdevkit/VOC2007/JPEGImages/'
-VOC_2012_images_dir = '../../datasets/VOCdevkit/VOC2012/JPEGImages/'
+VOC_2007_images_dir = '/Data/jing/VOCdevkit/VOC2007/JPEGImages/'
+VOC_2012_images_dir = '/Data/jing/VOCdevkit/VOC2012/JPEGImages/'
 
 # The directories that contain the annotations.
-VOC_2007_annotations_dir = '../../datasets/VOCdevkit/VOC2007/Annotations/'
-VOC_2012_annotations_dir = '../../datasets/VOCdevkit/VOC2012/Annotations/'
+VOC_2007_annotations_dir = '/Data/jing/VOCdevkit/VOC2007/Annotations/'
+VOC_2012_annotations_dir = '/Data/jing/VOCdevkit/VOC2012/Annotations/'
 
 # The paths to the image sets.
-VOC_2007_train_image_set_filename = '../../datasets/VOCdevkit/VOC2007/ImageSets/Main/train.txt'
-VOC_2012_train_image_set_filename = '../../datasets/VOCdevkit/VOC2012/ImageSets/Main/train.txt'
-VOC_2007_val_image_set_filename = '../../datasets/VOCdevkit/VOC2007/ImageSets/Main/val.txt'
-VOC_2012_val_image_set_filename = '../../datasets/VOCdevkit/VOC2012/ImageSets/Main/val.txt'
-VOC_2007_trainval_image_set_filename = '../../datasets/VOCdevkit/VOC2007/ImageSets/Main/trainval.txt'
-VOC_2012_trainval_image_set_filename = '../../datasets/VOCdevkit/VOC2012/ImageSets/Main/trainval.txt'
-VOC_2007_test_image_set_filename = '../../datasets/VOCdevkit/VOC2007/ImageSets/Main/test.txt'
+VOC_2007_train_image_set_filename = '/Data/jing/VOCdevkit/VOC2007/ImageSets/Main/train.txt'
+VOC_2012_train_image_set_filename = '/Data/jing/VOCdevkit/VOC2012/ImageSets/Main/train.txt'
+VOC_2007_val_image_set_filename = '/Data/jing/VOCdevkit/VOC2007/ImageSets/Main/val.txt'
+VOC_2012_val_image_set_filename = '/Data/jing/VOCdevkit/VOC2012/ImageSets/Main/val.txt'
+VOC_2007_trainval_image_set_filename = '/Data/jing/VOCdevkit/VOC2007/ImageSets/Main/trainval.txt'
+VOC_2012_trainval_image_set_filename = '/Data/jing/VOCdevkit/VOC2012/ImageSets/Main/trainval.txt'
+VOC_2007_test_image_set_filename = '/Data/jing/VOCdevkit/VOC2007/ImageSets/Main/test.txt'
 
 # The XML parser needs to now what object class names to look for and in which order to map them to integers.
 classes = ['background',
@@ -145,13 +148,13 @@ batch_size = 32 # Change the batch size if you like, or if you run into GPU memo
 # 4: Set the image transformations for pre-processing and data augmentation options.
 
 # For the training generator:
-ssd_data_augmentation = SSDDataAugmentation(img_height=img_height,
-                                            img_width=img_width,
-                                            background=mean_color)
+ssd_data_augmentation = SSDDataAugmentation(img_height=vgg_config.img_height,
+                                            img_width=vgg_config.img_width,
+                                            background=vgg_config.mean_color)
 
 # For the validation generator:
 convert_to_3_channels = ConvertTo3Channels()
-resize = Resize(height=img_height, width=img_width)
+resize = Resize(height=vgg_config.img_height, width=vgg_config.img_width)
 
 # 5: Instantiate an encoder that can encode ground truth labels into the format needed by the SSD loss function.
 
@@ -163,21 +166,21 @@ predictor_sizes = [model.get_layer('conv4_3_norm_mbox_conf').output_shape[1:3],
                    model.get_layer('conv8_2_mbox_conf').output_shape[1:3],
                    model.get_layer('conv9_2_mbox_conf').output_shape[1:3]]
 
-ssd_input_encoder = SSDInputEncoder(img_height=img_height,
-                                    img_width=img_width,
-                                    n_classes=n_classes,
+ssd_input_encoder = SSDInputEncoder(img_height=vgg_config.img_height,
+                                    img_width=vgg_config.img_width,
+                                    n_classes=vgg_config.n_classes,
                                     predictor_sizes=predictor_sizes,
-                                    scales=scales,
-                                    aspect_ratios_per_layer=aspect_ratios,
-                                    two_boxes_for_ar1=two_boxes_for_ar1,
-                                    steps=steps,
-                                    offsets=offsets,
-                                    clip_boxes=clip_boxes,
-                                    variances=variances,
+                                    scales=vgg_config.scales,
+                                    aspect_ratios_per_layer=vgg_config.aspect_ratios,
+                                    two_boxes_for_ar1=vgg_config.two_boxes_for_ar1,
+                                    steps=vgg_config.steps,
+                                    offsets=vgg_config.offsets,
+                                    clip_boxes=vgg_config.clip_boxes,
+                                    variances=vgg_config.variances,
                                     matching_type='multi',
                                     pos_iou_threshold=0.5,
                                     neg_iou_limit=0.5,
-                                    normalize_coords=normalize_coords)
+                                    normalize_coords=vgg_config.normalize_coords)
 
 # 6: Create the generator handles that will be passed to Keras' `fit_generator()` function.
 
