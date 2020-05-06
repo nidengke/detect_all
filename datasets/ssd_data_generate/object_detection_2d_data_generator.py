@@ -29,6 +29,7 @@ import csv
 import os
 import sys
 from tqdm import tqdm, trange
+
 try:
     import h5py
 except ImportError:

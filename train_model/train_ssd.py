@@ -1,5 +1,6 @@
-import os,sys
-os.environ["CUDA_VISIABLE_DEVICES"]="3"
+import os, sys
+
+os.environ["CUDA_VISIABLE_DEVICES"] = "3"
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath("__file__"))))
 from math import ceil
 import numpy as np
@@ -25,36 +26,37 @@ from datasets.ssd_data_generate.object_detection_2d_photometric_ops import Conve
 from datasets.ssd_data_generate.data_augmentation_chain_original_ssd import SSDDataAugmentation
 from datasets.ssd_data_generate.object_detection_2d_misc_utils import apply_inverse_transforms
 
-from configs.vgg_config import VggSSD300
+from configs import vgg_ssd300
 
 # 1 构建模型
-vgg_config = VggSSD300()
-image_size = (vgg_config.img_height, vgg_config.img_width, vgg_config.img_channels)
-model = build_vgg_ssd300_model(image_size,
-                               n_classes=vgg_config.n_classes,
-                               mode=vgg_config.mode,
-                               l2_regularization=vgg_config.l2_regularization,
-                               min_scale=None,
-                               max_scale=None,
-                               scales=vgg_config.scales,
-                               aspect_ratios_global=None,
-                               aspect_ratios_per_layer=vgg_config.aspect_ratios,
-                               two_boxes_for_ar1=vgg_config.two_boxes_for_ar1,
-                               steps=vgg_config.steps,
-                               offsets=vgg_config.offsets,
-                               clip_boxes=vgg_config.clip_boxes,
-                               variances=vgg_config.variances,
-                               coords=vgg_config.coords,
-                               normalize_coords=vgg_config.normalize_coords,
-                               subtract_mean=vgg_config.subtract_mean,
-                               divide_by_stddev=vgg_config.divide_by_stddev,
-                               swap_channels=vgg_config.swap_channels,
-                               confidence_thresh=vgg_config.confidence_thresh,
-                               iou_threshold=vgg_config.iou_threshold,
-                               top_k=vgg_config.top_k,
-                               nms_max_output_size=vgg_config.nms_max_output_size,
-                               return_predictor_sizes=vgg_config.return_predictor_sizes)
 
+print("config info:",
+      vgg_ssd300.image_size,
+      type(vgg_ssd300.image_size),
+      vgg_ssd300.n_classes,
+      type(vgg_ssd300 .n_classes),
+      vgg_ssd300.mode,
+      type(vgg_ssd300 .mode),
+      vgg_ssd300.l2_regularization,
+      type(vgg_ssd300.l2_regularization)
+      )
+model = build_vgg_ssd300_model(vgg_ssd300.image_size,
+                               n_classes=vgg_ssd300.n_classes,
+                               mode=vgg_ssd300.mode,
+                               l2_regularization=vgg_ssd300.l2_regularization,
+                               scales=vgg_ssd300.scales,
+                               aspect_ratios_per_layer=vgg_ssd300.aspect_ratios,
+                               two_boxes_for_ar1=vgg_ssd300.two_boxes_for_ar1,
+                               steps=vgg_ssd300.steps,
+                               offsets=vgg_ssd300.offsets,
+                               clip_boxes=vgg_ssd300.clip_boxes,
+                               variances=vgg_ssd300.variances,
+                               coords=vgg_ssd300.coords,
+                               normalize_coords=vgg_ssd300.normalize_coords,
+                               subtract_mean=vgg_ssd300.subtract_mean,
+                               swap_channels=vgg_ssd300.swap_channels)
+
+print(model.name)
 # 2 加载权重
 weights_path = './weights/VGG_ILSVRC_16_layers_fc_reduced.h5'
 try:
@@ -72,12 +74,7 @@ ssd_loss = SSDLoss(neg_pos_ratio=3, alpha=1.0)
 #  编译模型
 model.compile(optimizer=sgd, loss=ssd_loss.compute_loss)
 
-# 1: Instantiate two `DataGenerator` objects: One for training, one for validation.
 
-# Optional: If you have enough memory, consider loading the images into memory for the reasons explained above.
-
-train_dataset = DataGenerator(load_images_into_memory=False, hdf5_dataset_path=None)
-val_dataset = DataGenerator(load_images_into_memory=False, hdf5_dataset_path=None)
 
 # 5: 设置数据集路径.
 
@@ -106,55 +103,69 @@ classes = ['background',
            'horse', 'motorbike', 'person', 'pottedplant',
            'sheep', 'sofa', 'train', 'tvmonitor']
 
-train_dataset.parse_xml(images_dirs=[VOC_2007_images_dir,
-                                     VOC_2012_images_dir],
-                        image_set_filenames=[VOC_2007_trainval_image_set_filename,
-                                             VOC_2012_trainval_image_set_filename],
-                        annotations_dirs=[VOC_2007_annotations_dir,
-                                          VOC_2012_annotations_dir],
-                        classes=classes,
-                        include_classes='all',
-                        exclude_truncated=False,
-                        exclude_difficult=False,
-                        ret=False)
 
-val_dataset.parse_xml(images_dirs=[VOC_2007_images_dir],
-                      image_set_filenames=[VOC_2007_test_image_set_filename],
-                      annotations_dirs=[VOC_2007_annotations_dir],
-                      classes=classes,
-                      include_classes='all',
-                      exclude_truncated=False,
-                      exclude_difficult=True,
-                      ret=False)
 
 # Optional: Convert the dataset into an HDF5 dataset. This will require more disk space, but will
 # speed up the training. Doing this is not relevant in case you activated the `load_images_into_memory`
 # option in the constructor, because in that cas the images are in memory already anyway. If you don't
 # want to create HDF5 datasets, comment out the subsequent two function calls.
+# 1: Instantiate two `DataGenerator` objects: One for training, one for validation.
 
-train_dataset.create_hdf5_dataset(file_path='dataset_pascal_voc_07+12_trainval.h5',
-                                  resize=False,
-                                  variable_image_size=True,
-                                  verbose=True)
+# Optional: If you have enough memory, consider loading the images into memory for the reasons explained above.
+trainval_h5_path = '/Data/jing/VOCdevkit/dataset_pascal_voc_07+12_trainval.h5'
+test_h5_path = '/Data/jing/VOCdevkit/dataset_pascal_voc_07_test.h5'
+train_dataset = DataGenerator(hdf5_dataset_path=trainval_h5_path,load_images_into_memory=False)
+val_dataset = DataGenerator(hdf5_dataset_path=test_h5_path,load_images_into_memory=False)
 
-val_dataset.create_hdf5_dataset(file_path='dataset_pascal_voc_07_test.h5',
-                                resize=False,
-                                variable_image_size=True,
-                                verbose=True)
+if not os.path.exists(trainval_h5_path) or not os.path.exists(test_h5_path):
+    train_dataset.parse_xml(images_dirs=[VOC_2007_images_dir,
+                                         VOC_2012_images_dir],
+                            image_set_filenames=[VOC_2007_trainval_image_set_filename,
+                                                 VOC_2012_trainval_image_set_filename],
+                            annotations_dirs=[VOC_2007_annotations_dir,
+                                              VOC_2012_annotations_dir],
+                            classes=classes,
+                            include_classes='all',
+                            exclude_truncated=False,
+                            exclude_difficult=False,
+                            ret=False)
+
+    val_dataset.parse_xml(images_dirs=[VOC_2007_images_dir],
+                          image_set_filenames=[VOC_2007_test_image_set_filename],
+                          annotations_dirs=[VOC_2007_annotations_dir],
+                          classes=classes,
+                          include_classes='all',
+                          exclude_truncated=False,
+                          exclude_difficult=True,
+                          ret=False)
+
+    train_dataset.create_hdf5_dataset(file_path='/Data/jing/VOCdevkit/dataset_pascal_voc_07+12_trainval.h5',
+                                      resize=False,
+                                      variable_image_size=True,
+                                      verbose=True)
+
+    val_dataset.create_hdf5_dataset(file_path='/Data/jing/VOCdevkit/dataset_pascal_voc_07_test.h5',
+                                    resize=False,
+                                    variable_image_size=True,
+                                    verbose=True)
+else:
+    print('load h5 file')
+    train_dataset.load_hdf5_dataset(trainval_h5_path)
+    val_dataset.load_hdf5_dataset(test_h5_path)
 # 3: Set the batch size.
 
-batch_size = 32 # Change the batch size if you like, or if you run into GPU memory issues.
+batch_size = 8  # Change the batch size if you like, or if you run into GPU memory issues.
 
 # 4: Set the image transformations for pre-processing and data augmentation options.
 
 # For the training generator:
-ssd_data_augmentation = SSDDataAugmentation(img_height=vgg_config.img_height,
-                                            img_width=vgg_config.img_width,
-                                            background=vgg_config.mean_color)
+ssd_data_augmentation = SSDDataAugmentation(img_height=vgg_ssd300.image_size[0],
+                                            img_width=vgg_ssd300.image_size[1],
+                                            background=vgg_ssd300.mean_color)
 
 # For the validation generator:
 convert_to_3_channels = ConvertTo3Channels()
-resize = Resize(height=vgg_config.img_height, width=vgg_config.img_width)
+resize = Resize(height=vgg_ssd300.image_size[0], width=vgg_ssd300.image_size[1])
 
 # 5: Instantiate an encoder that can encode ground truth labels into the format needed by the SSD loss function.
 
@@ -166,21 +177,21 @@ predictor_sizes = [model.get_layer('conv4_3_norm_mbox_conf').output_shape[1:3],
                    model.get_layer('conv8_2_mbox_conf').output_shape[1:3],
                    model.get_layer('conv9_2_mbox_conf').output_shape[1:3]]
 
-ssd_input_encoder = SSDInputEncoder(img_height=vgg_config.img_height,
-                                    img_width=vgg_config.img_width,
-                                    n_classes=vgg_config.n_classes,
+ssd_input_encoder = SSDInputEncoder(img_height=vgg_ssd300.image_size[0],
+                                    img_width=vgg_ssd300.image_size[1],
+                                    n_classes=vgg_ssd300.image_size[2],
                                     predictor_sizes=predictor_sizes,
-                                    scales=vgg_config.scales,
-                                    aspect_ratios_per_layer=vgg_config.aspect_ratios,
-                                    two_boxes_for_ar1=vgg_config.two_boxes_for_ar1,
-                                    steps=vgg_config.steps,
-                                    offsets=vgg_config.offsets,
-                                    clip_boxes=vgg_config.clip_boxes,
-                                    variances=vgg_config.variances,
+                                    scales=vgg_ssd300.scales,
+                                    aspect_ratios_per_layer=vgg_ssd300.aspect_ratios,
+                                    two_boxes_for_ar1=vgg_ssd300.two_boxes_for_ar1,
+                                    steps=vgg_ssd300.steps,
+                                    offsets=vgg_ssd300.offsets,
+                                    clip_boxes=vgg_ssd300.clip_boxes,
+                                    variances=vgg_ssd300.variances,
                                     matching_type='multi',
                                     pos_iou_threshold=0.5,
                                     neg_iou_limit=0.5,
-                                    normalize_coords=vgg_config.normalize_coords)
+                                    normalize_coords=vgg_ssd300.normalize_coords)
 
 # 6: Create the generator handles that will be passed to Keras' `fit_generator()` function.
 
@@ -203,10 +214,11 @@ val_generator = val_dataset.generate(batch_size=batch_size,
 
 # Get the number of samples in the training and validations datasets.
 train_dataset_size = train_dataset.get_dataset_size()
-val_dataset_size   = val_dataset.get_dataset_size()
+val_dataset_size = val_dataset.get_dataset_size()
 
 print("Number of images in the training dataset:\t{:>6}".format(train_dataset_size))
 print("Number of images in the validation dataset:\t{:>6}".format(val_dataset_size))
+
 
 # Define a learning rate schedule.
 
@@ -218,17 +230,18 @@ def lr_schedule(epoch):
     else:
         return 0.00001
 
+
 # Define model callbacks.
 
-# TODO: Set the filepath under which you want to save the model.
-model_checkpoint = ModelCheckpoint(filepath='ssd300_pascal_07+12_epoch-{epoch:02d}_loss-{loss:.4f}_val_loss-{val_loss:.4f}.h5',
-                                   monitor='val_loss',
-                                   verbose=1,
-                                   save_best_only=True,
-                                   save_weights_only=False,
-                                   mode='auto',
-                                   period=1)
-#model_checkpoint.best =
+model_checkpoint = ModelCheckpoint(
+    filepath='/Data/jing/weights/ssd300_pascal_07+12_epoch-{epoch:02d}_loss-{loss:.4f}_val_loss-{val_loss:.4f}.h5',
+    monitor='val_loss',
+    verbose=1,
+    save_best_only=True,
+    save_weights_only=False,
+    mode='auto',
+    period=1)
+# model_checkpoint.best =
 
 csv_logger = CSVLogger(filename='ssd300_pascal_07+12_training_log.csv',
                        separator=',',
@@ -245,8 +258,8 @@ callbacks = [model_checkpoint,
              terminate_on_nan]
 
 # If you're resuming a previous training, set `initial_epoch` and `final_epoch` accordingly.
-initial_epoch   = 0
-final_epoch     = 120
+initial_epoch = 0
+final_epoch = 120
 steps_per_epoch = 1000
 
 history = model.fit_generator(generator=train_generator,
@@ -254,6 +267,5 @@ history = model.fit_generator(generator=train_generator,
                               epochs=final_epoch,
                               callbacks=callbacks,
                               validation_data=val_generator,
-                              validation_steps=ceil(val_dataset_size/batch_size),
+                              validation_steps=ceil(val_dataset_size / batch_size),
                               initial_epoch=initial_epoch)
-
