@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 from augment.efficientdet.transform import translation_xy, change_transform_origin, scaling_xy
-from utils import reorder_vertexes
+from utils.efficientdet_utils import reorder_vertexes
 
 
 def rotate(image, annotations, prob=0.5, border_value=(128, 128, 128)):

@@ -1,24 +1,3 @@
-# Copyright 2019 The TensorFlow Authors, Pavel Yakubovskiy, Björn Barz. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ==============================================================================
-"""Contains definitions for EfficientNet model.
-
-[1] Mingxing Tan, Quoc V. Le
-  EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks.
-  ICML'19, https://arxiv.org/abs/1905.11946
-"""
-
 # Code of this model implementation is mostly written by
 # Björn Barz ([@Callidior](https://github.com/Callidior))
 
@@ -38,8 +17,8 @@ from keras_applications.imagenet_utils import _obtain_input_shape
 from keras_applications.imagenet_utils import decode_predictions
 from keras_applications.imagenet_utils import preprocess_input as _preprocess_input
 
-from utils import get_submodules_from_kwargs
-from layers import BatchNormalization
+from utils.efficientdet_utils import get_submodules_from_kwargs
+# from keras_layers.efficientdet_layers.layers import BatchNormalization
 
 backend = None
 layers = None
@@ -573,6 +552,22 @@ setattr(EfficientNetB4, '__doc__', EfficientNet.__doc__)
 setattr(EfficientNetB5, '__doc__', EfficientNet.__doc__)
 setattr(EfficientNetB6, '__doc__', EfficientNet.__doc__)
 setattr(EfficientNetB7, '__doc__', EfficientNet.__doc__)
+
+from utils.efficientdet_utils import inject_tfkeras_modules, init_tfkeras_custom_objects
+
+EfficientNetB0 = inject_tfkeras_modules(EfficientNetB0)
+EfficientNetB1 = inject_tfkeras_modules(EfficientNetB1)
+EfficientNetB2 = inject_tfkeras_modules(EfficientNetB2)
+EfficientNetB3 = inject_tfkeras_modules(EfficientNetB3)
+EfficientNetB4 = inject_tfkeras_modules(EfficientNetB4)
+EfficientNetB5 = inject_tfkeras_modules(EfficientNetB5)
+EfficientNetB6 = inject_tfkeras_modules(EfficientNetB6)
+EfficientNetB7 = inject_tfkeras_modules(EfficientNetB7)
+
+preprocess_input = inject_tfkeras_modules(preprocess_input)
+
+init_tfkeras_custom_objects()
+
 
 if __name__=="__main__":
     pass
