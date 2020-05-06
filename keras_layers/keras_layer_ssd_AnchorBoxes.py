@@ -169,9 +169,9 @@ class AnchorBoxes(Layer):
 
         # We need the shape of the input tensor
         if K.image_data_format() == 'channels_last':
-            batch_size, feature_map_height, feature_map_width, feature_map_channels = x._keras_shape
+            batch_size, feature_map_height, feature_map_width, feature_map_channels = x._shape_val
         else: # Not yet relevant since TensorFlow is the only supported backend right now, but it can't harm to have this in here for the future
-            batch_size, feature_map_channels, feature_map_height, feature_map_width = x._keras_shape
+            batch_size, feature_map_channels, feature_map_height, feature_map_width = x._shape_val
 
         # Compute the grid of box center points. They are identical for all aspect ratios.
 
@@ -278,4 +278,9 @@ class AnchorBoxes(Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
+if __name__=="__main__":
+    import tensorflow as tf
 
+    s = tf.keras.layers.Input(shape=[2,5], dtype=tf.float32, name='s')
+    print(s._shape_val)  # TensorShape([Dimension(None), Dimension(2)])
+    print(s._keras_shape)  # Error
