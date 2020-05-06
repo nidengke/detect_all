@@ -1,6 +1,5 @@
 import os, sys
-
-os.environ["CUDA_VISIABLE_DEVICES"] = "3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath("__file__"))))
 from math import ceil
 import numpy as np
@@ -29,7 +28,6 @@ from datasets.ssd_data_generate.object_detection_2d_misc_utils import apply_inve
 from configs import vgg_ssd300
 
 # 1 构建模型
-
 print("config info:",
       vgg_ssd300.image_size,
       type(vgg_ssd300.image_size),
@@ -154,7 +152,7 @@ else:
     val_dataset.load_hdf5_dataset(test_h5_path)
 # 3: Set the batch size.
 
-batch_size = 8  # Change the batch size if you like, or if you run into GPU memory issues.
+batch_size = 32  # Change the batch size if you like, or if you run into GPU memory issues.
 
 # 4: Set the image transformations for pre-processing and data augmentation options.
 
@@ -179,7 +177,7 @@ predictor_sizes = [model.get_layer('conv4_3_norm_mbox_conf').output_shape[1:3],
 
 ssd_input_encoder = SSDInputEncoder(img_height=vgg_ssd300.image_size[0],
                                     img_width=vgg_ssd300.image_size[1],
-                                    n_classes=vgg_ssd300.image_size[2],
+                                    n_classes=vgg_ssd300.n_classes,
                                     predictor_sizes=predictor_sizes,
                                     scales=vgg_ssd300.scales,
                                     aspect_ratios_per_layer=vgg_ssd300.aspect_ratios,
