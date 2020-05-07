@@ -7,15 +7,15 @@ import numpy as np
 
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Input, Lambda, Conv2D, MaxPooling2D, BatchNormalization, ELU, Reshape, Concatenate, \
-    Activation,Flatten,SeparableConv2D,AlphaDropout,GaussianDropout,Dropout,concatenate
-from tensorflow.keras.models import Model,Sequential
+    Activation, Flatten, SeparableConv2D, AlphaDropout, GaussianDropout, Dropout, concatenate
+from tensorflow.keras.models import Model, Sequential
 from tensorflow.keras.regularizers import l2
 import tensorflow.keras.backend as K
 
 from keras_layers.keras_layer_ssd_AnchorBoxes import AnchorBoxes
 from keras_layers.keras_layer_ssd_DecodeDetections import DecodeDetections
 from keras_layers.keras_layer_ssd_DecodeDetectionsFast import DecodeDetectionsFast
-from backbone.ssd import build_base_ssd_7, build_base_vgg_ssd300, build_base_mb1_ssd300
+from backbone.ssd import build_base_ssd_7, build_base_vgg_ssd300, build_base_mb1_ssd300, build_base_mb2_ssd300
 
 
 def build_ssd_7_model(image_size,
@@ -276,34 +276,34 @@ def build_ssd_7_model(image_size,
 
 
 def build_vgg_ssd300_model(image_size,
-                        n_classes,
-                        mode='training',
-                        l2_regularization=0.0005,
-                        min_scale=None,
-                        max_scale=None,
-                        scales=None,
-                        aspect_ratios_global=None,
-                        aspect_ratios_per_layer=[[1.0, 2.0, 0.5],
-                                                 [1.0, 2.0, 0.5, 3.0, 1.0 / 3.0],
-                                                 [1.0, 2.0, 0.5, 3.0, 1.0 / 3.0],
-                                                 [1.0, 2.0, 0.5, 3.0, 1.0 / 3.0],
-                                                 [1.0, 2.0, 0.5],
-                                                 [1.0, 2.0, 0.5]],
-                        two_boxes_for_ar1=True,
-                        steps=[8, 16, 32, 64, 100, 300],
-                        offsets=None,
-                        clip_boxes=False,
-                        variances=[0.1, 0.1, 0.2, 0.2],
-                        coords='centroids',
-                        normalize_coords=True,
-                        subtract_mean=[123, 117, 104],
-                        divide_by_stddev=None,
-                        swap_channels=[2, 1, 0],
-                        confidence_thresh=0.01,
-                        iou_threshold=0.45,
-                        top_k=200,
-                        nms_max_output_size=400,
-                        return_predictor_sizes=False):
+                           n_classes,
+                           mode='training',
+                           l2_regularization=0.0005,
+                           min_scale=None,
+                           max_scale=None,
+                           scales=None,
+                           aspect_ratios_global=None,
+                           aspect_ratios_per_layer=[[1.0, 2.0, 0.5],
+                                                    [1.0, 2.0, 0.5, 3.0, 1.0 / 3.0],
+                                                    [1.0, 2.0, 0.5, 3.0, 1.0 / 3.0],
+                                                    [1.0, 2.0, 0.5, 3.0, 1.0 / 3.0],
+                                                    [1.0, 2.0, 0.5],
+                                                    [1.0, 2.0, 0.5]],
+                           two_boxes_for_ar1=True,
+                           steps=[8, 16, 32, 64, 100, 300],
+                           offsets=None,
+                           clip_boxes=False,
+                           variances=[0.1, 0.1, 0.2, 0.2],
+                           coords='centroids',
+                           normalize_coords=True,
+                           subtract_mean=[123, 117, 104],
+                           divide_by_stddev=None,
+                           swap_channels=[2, 1, 0],
+                           confidence_thresh=0.01,
+                           iou_threshold=0.45,
+                           top_k=200,
+                           nms_max_output_size=400,
+                           return_predictor_sizes=False):
     # 用于预测的多特征层数
     n_predictor_layers = 6  # The number of predictor conv layers in the network is 6 for the original SSD300.
     n_classes += 1  # Account for the background class.
@@ -360,7 +360,7 @@ def build_vgg_ssd300_model(image_size,
     if aspect_ratios_per_layer:
         n_boxes = []  # 各特征图prior box个数
         for ar in aspect_ratios_per_layer:
-            if (1 in ar) & two_boxes_for_ar1:   # 是否添加大于当前特征图的1:1候选框
+            if (1 in ar) & two_boxes_for_ar1:  # 是否添加大于当前特征图的1:1候选框
                 n_boxes.append(len(ar) + 1)  # 两个比例为1 的default box
             else:
                 n_boxes.append(len(ar))
@@ -377,7 +377,8 @@ def build_vgg_ssd300_model(image_size,
         offsets = [None] * n_predictor_layers
 
     # 构建基础网络
-    base_mdoel = build_base_vgg_ssd300(image_size=image_size, l2_regularization=l2_regularization)
+    input_x = Input(shape=image_size)
+    base_mdoel = build_base_vgg_ssd300(image_size=image_size, input_x=input_x, l2_regularization=l2_regularization)
 
     # 构建辅助卷积层和输出层
     conv4_3_norm_mbox_conf = Conv2D(n_boxes[0] * n_classes, (3, 3), padding='same', kernel_initializer='he_normal',
@@ -522,7 +523,7 @@ def build_vgg_ssd300_model(image_size,
     predictions = Concatenate(axis=2, name='predictions')([mbox_conf_softmax, mbox_loc, mbox_priorbox])
 
     if mode == 'training':
-        model = Model(inputs=base_mdoel.input, outputs=predictions)
+        model = Model(inputs=input_x, outputs=predictions)
     elif mode == 'inference':
         decoded_predictions = DecodeDetections(confidence_thresh=confidence_thresh,
                                                iou_threshold=iou_threshold,
@@ -562,34 +563,34 @@ def build_vgg_ssd300_model(image_size,
 
 
 def build_mb1_ssd300_model(image_size,
-                        n_classes,
-                        mode='training',
-                        l2_regularization=0.0005,
-                        min_scale=None,
-                        max_scale=None,
-                        scales=None,
-                        aspect_ratios_global=None,
-                        aspect_ratios_per_layer=[[1.0, 2.0, 0.5],
-                                                 [1.0, 2.0, 0.5, 3.0, 1.0 / 3.0],
-                                                 [1.0, 2.0, 0.5, 3.0, 1.0 / 3.0],
-                                                 [1.0, 2.0, 0.5, 3.0, 1.0 / 3.0],
-                                                 [1.0, 2.0, 0.5],
-                                                 [1.0, 2.0, 0.5]],
-                        two_boxes_for_ar1=True,
-                        steps=[8, 16, 32, 64, 100, 300],
-                        offsets=None,
-                        clip_boxes=False,
-                        variances=[0.1, 0.1, 0.2, 0.2],
-                        coords='centroids',
-                        normalize_coords=True,
-                        subtract_mean=[123, 117, 104],
-                        divide_by_stddev=None,
-                        swap_channels=[2, 1, 0],
-                        confidence_thresh=0.01,
-                        iou_threshold=0.45,
-                        top_k=200,
-                        nms_max_output_size=400,
-                        return_predictor_sizes=False):
+                           n_classes,
+                           mode='training',
+                           l2_regularization=0.0005,
+                           min_scale=None,
+                           max_scale=None,
+                           scales=None,
+                           aspect_ratios_global=None,
+                           aspect_ratios_per_layer=[[1.0, 2.0, 0.5],
+                                                    [1.0, 2.0, 0.5, 3.0, 1.0 / 3.0],
+                                                    [1.0, 2.0, 0.5, 3.0, 1.0 / 3.0],
+                                                    [1.0, 2.0, 0.5, 3.0, 1.0 / 3.0],
+                                                    [1.0, 2.0, 0.5],
+                                                    [1.0, 2.0, 0.5]],
+                           two_boxes_for_ar1=True,
+                           steps=[8, 16, 32, 64, 100, 300],
+                           offsets=None,
+                           clip_boxes=False,
+                           variances=[0.1, 0.1, 0.2, 0.2],
+                           coords='centroids',
+                           normalize_coords=True,
+                           subtract_mean=[123, 117, 104],
+                           divide_by_stddev=None,
+                           swap_channels=[2, 1, 0],
+                           confidence_thresh=0.01,
+                           iou_threshold=0.45,
+                           top_k=200,
+                           nms_max_output_size=400,
+                           return_predictor_sizes=False):
     # 用于预测的多特征层数
     n_predictor_layers = 6  # The number of predictor conv layers in the network is 6 for the original SSD300.
     n_classes += 1  # Account for the background class.
@@ -646,7 +647,7 @@ def build_mb1_ssd300_model(image_size,
     if aspect_ratios_per_layer:
         n_boxes = []  # 各特征图prior box个数
         for ar in aspect_ratios_per_layer:
-            if (1 in ar) & two_boxes_for_ar1:   # 是否添加大于当前特征图的1:1候选框
+            if (1 in ar) & two_boxes_for_ar1:  # 是否添加大于当前特征图的1:1候选框
                 n_boxes.append(len(ar) + 1)  # 两个比例为1 的default box
             else:
                 n_boxes.append(len(ar))
@@ -666,9 +667,10 @@ def build_mb1_ssd300_model(image_size,
     mb1_basenet = build_base_mb1_ssd300(image_size=image_size, l2_regularization=l2_regularization)
 
     base_model = Model(inputs=mb1_basenet.input, outputs=mb1_basenet.get_layer('conv_dw_11_relu').output)
+    base_model.summary()
     # 构建辅助卷积层和输出层
     net = {}
-    net['input'] = Input(image_size)
+    net['input'] = Input(shape=image_size)
     net['mobilenet_conv_dw_11_relu'] = base_model(net['input'])
     net['conv11'] = Conv2D(512, (1, 1), padding='same', name='conv11')(net['mobilenet_conv_dw_11_relu'])
     net['conv11'] = BatchNormalization(momentum=0.99, name='bn11')(net['conv11'])
@@ -714,94 +716,142 @@ def build_mb1_ssd300_model(image_size,
 
     # Prediction from conv11
     net['conv11_mbox_loc'] = Conv2D(n_boxes[0] * 4, (1, 1), padding='same', name='conv11_mbox_loc')(net['conv11'])
-    net['conv11_mbox_conf'] = Conv2D(n_boxes[0] * n_classes, (1, 1), padding='same', name='conv11_mbox_conf')(net['conv11'])
+    net['conv11_mbox_conf'] = Conv2D(n_boxes[0] * n_classes, (1, 1), padding='same', name='conv11_mbox_conf')(
+        net['conv11'])
 
     # Prediction from conv13
     net['conv13_mbox_loc'] = Conv2D(n_boxes[1] * 4, (1, 1), padding='same', name='conv13_mbox_loc')(net['conv13'])
-    net['conv13_mbox_conf'] = Conv2D(n_boxes[1] * n_classes, (1, 1), padding='same', name='conv13_mbox_conf')(net['conv13'])
+    net['conv13_mbox_conf'] = Conv2D(n_boxes[1] * n_classes, (1, 1), padding='same', name='conv13_mbox_conf')(
+        net['conv13'])
 
     # Prediction from conv14_2
-    net['conv14_2_mbox_loc'] = Conv2D(n_boxes[2] * 4, (1, 1), padding='same', name='conv13_mbox_loc')(net['conv14_2'])
-    net['conv14_2_mbox_conf'] = Conv2D(n_boxes[2] * n_classes, (1, 1), padding='same', name='conv13_mbox_conf')(net['conv14_2'])
-
+    net['conv14_2_mbox_loc'] = Conv2D(n_boxes[2] * 4, (1, 1), padding='same', name='conv14_2_mbox_loc')(net['conv14_2'])
+    net['conv14_2_mbox_conf'] = Conv2D(n_boxes[2] * n_classes, (1, 1), padding='same', name='conv14_2_mbox_conf')(
+        net['conv14_2'])
 
     # Prediction from conv15_2
-    net['conv15_2_mbox_loc'] = Conv2D(n_boxes[3] * 4, (1, 1), padding='same', name='conv13_mbox_loc')(net['conv15_2'])
-    net['conv15_2_mbox_conf'] = Conv2D(n_boxes[3] * n_classes, (1, 1), padding='same', name='conv13_mbox_conf')(net['conv15_2'])
+    net['conv15_2_mbox_loc'] = Conv2D(n_boxes[3] * 4, (1, 1), padding='same', name='conv15_2_mbox_loc')(net['conv15_2'])
+    net['conv15_2_mbox_conf'] = Conv2D(n_boxes[3] * n_classes, (1, 1), padding='same', name='conv15_2_mbox_conf')(
+        net['conv15_2'])
 
     # Prediction from conv16_2
-    net['conv16_2_mbox_loc'] = Conv2D(n_boxes[4] * 4, (1, 1), padding='same', name='conv13_mbox_loc')(net['conv16_2'])
-    net['conv16_2_mbox_conf'] = Conv2D(n_boxes[4] * n_classes, (1, 1), padding='same', name='conv13_mbox_conf')(net['conv16_2'])
+    net['conv16_2_mbox_loc'] = Conv2D(n_boxes[4] * 4, (1, 1), padding='same', name='conv16_2_mbox_loc')(net['conv16_2'])
+    net['conv16_2_mbox_conf'] = Conv2D(n_boxes[4] * n_classes, (1, 1), padding='same', name='conv16_2_mbox_conf')(
+        net['conv16_2'])
 
     # Prediction from conv17_2
-    net['conv17_2_mbox_loc'] = Conv2D(n_boxes[5] * 4, (1, 1), padding='same', name='conv13_mbox_loc')(net['conv17_2'])
-    net['conv17_2_mbox_conf'] = Conv2D(n_boxes[5] * n_classes, (1, 1), padding='same', name='conv13_mbox_conf')(net['conv17_2'])
+    net['conv17_2_mbox_loc'] = Conv2D(n_boxes[5] * 4, (1, 1), padding='same', name='conv17_2_mbox_loc')(net['conv17_2'])
+    net['conv17_2_mbox_conf'] = Conv2D(n_boxes[5] * n_classes, (1, 1), padding='same', name='conv17_2_mbox_conf')(
+        net['conv17_2'])
 
     # Output shape of anchors: `(batch, height, width, n_boxes, 8)`
     net["conv11_norm_mbox_priorbox"] = AnchorBoxes(img_height, img_width, this_scale=scales[0], next_scale=scales[1],
-                                             aspect_ratios=aspect_ratios[0],
-                                             two_boxes_for_ar1=two_boxes_for_ar1, this_steps=steps[0],
-                                             this_offsets=offsets[0], clip_boxes=clip_boxes,
-                                             variances=variances, coords=coords, normalize_coords=normalize_coords,
-                                             name='conv4_3_norm_mbox_priorbox')(net['conv11_mbox_loc'])
+                                                   aspect_ratios=aspect_ratios[0],
+                                                   two_boxes_for_ar1=two_boxes_for_ar1, this_steps=steps[0],
+                                                   this_offsets=offsets[0], clip_boxes=clip_boxes,
+                                                   variances=variances, coords=coords,
+                                                   normalize_coords=normalize_coords,
+                                                   name='conv4_3_norm_mbox_priorbox')(net['conv11_mbox_loc'])
     net["conv13_norm_mbox_priorbox"] = AnchorBoxes(img_height, img_width, this_scale=scales[1], next_scale=scales[2],
-                                    aspect_ratios=aspect_ratios[1],
-                                    two_boxes_for_ar1=two_boxes_for_ar1, this_steps=steps[1], this_offsets=offsets[1],
-                                    clip_boxes=clip_boxes,
-                                    variances=variances, coords=coords, normalize_coords=normalize_coords,
-                                    name='fc7_mbox_priorbox')(net['conv13_mbox_loc'])
+                                                   aspect_ratios=aspect_ratios[1],
+                                                   two_boxes_for_ar1=two_boxes_for_ar1, this_steps=steps[1],
+                                                   this_offsets=offsets[1],
+                                                   clip_boxes=clip_boxes,
+                                                   variances=variances, coords=coords,
+                                                   normalize_coords=normalize_coords,
+                                                   name='fc7_mbox_priorbox')(net['conv13_mbox_loc'])
     net["conv14_2_norm_mbox_priorbox"] = AnchorBoxes(img_height, img_width, this_scale=scales[2], next_scale=scales[3],
-                                        aspect_ratios=aspect_ratios[2],
-                                        two_boxes_for_ar1=two_boxes_for_ar1, this_steps=steps[2],
-                                        this_offsets=offsets[2], clip_boxes=clip_boxes,
-                                        variances=variances, coords=coords, normalize_coords=normalize_coords,
-                                        name='conv6_2_mbox_priorbox')(net['conv14_2_mbox_loc'])
+                                                     aspect_ratios=aspect_ratios[2],
+                                                     two_boxes_for_ar1=two_boxes_for_ar1, this_steps=steps[2],
+                                                     this_offsets=offsets[2], clip_boxes=clip_boxes,
+                                                     variances=variances, coords=coords,
+                                                     normalize_coords=normalize_coords,
+                                                     name='conv6_2_mbox_priorbox')(net['conv14_2_mbox_loc'])
     net["conv15_2_norm_mbox_priorbox"] = AnchorBoxes(img_height, img_width, this_scale=scales[3], next_scale=scales[4],
-                                        aspect_ratios=aspect_ratios[3],
-                                        two_boxes_for_ar1=two_boxes_for_ar1, this_steps=steps[3],
-                                        this_offsets=offsets[3], clip_boxes=clip_boxes,
-                                        variances=variances, coords=coords, normalize_coords=normalize_coords,
-                                        name='conv15_2_mbox_priorbox')(net['conv15_2_mbox_loc'])
+                                                     aspect_ratios=aspect_ratios[3],
+                                                     two_boxes_for_ar1=two_boxes_for_ar1, this_steps=steps[3],
+                                                     this_offsets=offsets[3], clip_boxes=clip_boxes,
+                                                     variances=variances, coords=coords,
+                                                     normalize_coords=normalize_coords,
+                                                     name='conv15_2_mbox_priorbox')(net['conv15_2_mbox_loc'])
     net["conv16_2_norm_mbox_priorbox"] = AnchorBoxes(img_height, img_width, this_scale=scales[4], next_scale=scales[5],
-                                        aspect_ratios=aspect_ratios[4],
-                                        two_boxes_for_ar1=two_boxes_for_ar1, this_steps=steps[4],
-                                        this_offsets=offsets[4], clip_boxes=clip_boxes,
-                                        variances=variances, coords=coords, normalize_coords=normalize_coords,
-                                        name='conv16_2_mbox_priorbox')(net['conv16_2_mbox_loc'])
+                                                     aspect_ratios=aspect_ratios[4],
+                                                     two_boxes_for_ar1=two_boxes_for_ar1, this_steps=steps[4],
+                                                     this_offsets=offsets[4], clip_boxes=clip_boxes,
+                                                     variances=variances, coords=coords,
+                                                     normalize_coords=normalize_coords,
+                                                     name='conv16_2_mbox_priorbox')(net['conv16_2_mbox_loc'])
     net["conv17_2_norm_mbox_priorbox"] = AnchorBoxes(img_height, img_width, this_scale=scales[5], next_scale=scales[6],
-                                        aspect_ratios=aspect_ratios[5],
-                                        two_boxes_for_ar1=two_boxes_for_ar1, this_steps=steps[5],
-                                        this_offsets=offsets[5], clip_boxes=clip_boxes,
-                                        variances=variances, coords=coords, normalize_coords=normalize_coords,
-                                        name='conv17_2_mbox_priorbox')(net['conv17_2_mbox_loc'])
+                                                     aspect_ratios=aspect_ratios[5],
+                                                     two_boxes_for_ar1=two_boxes_for_ar1, this_steps=steps[5],
+                                                     this_offsets=offsets[5], clip_boxes=clip_boxes,
+                                                     variances=variances, coords=coords,
+                                                     normalize_coords=normalize_coords,
+                                                     name='conv17_2_mbox_priorbox')(net['conv17_2_mbox_loc'])
 
+    ### Reshape
+    # Reshape the class predictions, yielding 3D tensors of shape `(batch, height * width * n_boxes, n_classes)`
+    # We want the classes isolated in the last axis to perform softmax on them
+    net['conv11_mbox_conf_reshape'] = Reshape((-1, n_classes), name='conv11_norm_mbox_conf_reshape')(
+        net['conv11_mbox_conf'])
+    net['conv13_mbox_conf_reshape'] = Reshape((-1, n_classes), name='conv13_mbox_conf_reshape')(net['conv13_mbox_conf'])
+    net['conv14_2_mbox_conf_reshape'] = Reshape((-1, n_classes), name='conv14_2_mbox_conf_reshape')(
+        net['conv14_2_mbox_conf'])
+    net['conv15_2_mbox_conf_reshape'] = Reshape((-1, n_classes), name='conv15_2_mbox_conf_reshape')(
+        net['conv15_2_mbox_conf'])
+    net['conv16_2_mbox_conf_reshape'] = Reshape((-1, n_classes), name='conv16_2_mbox_conf_reshape')(
+        net['conv16_2_mbox_conf'])
+    net['conv17_2_mbox_conf_reshape'] = Reshape((-1, n_classes), name='conv17_2_mbox_conf_reshape')(
+        net['conv17_2_mbox_conf'])
 
+    # Reshape the box predictions, yielding 3D tensors of shape `(batch, height * width * n_boxes, 4)`
+    # We want the four box coordinates isolated in the last axis to compute the smooth L1 loss
+    net['conv11_mbox_loc_reshape'] = Reshape((-1, 4), name='conv11_norm_mbox_loc_reshape')(net['conv11_mbox_loc'])
+    net['conv13_mbox_loc_reshape'] = Reshape((-1, 4), name='conv13_mbox_loc_reshape')(net['conv13_mbox_loc'])
+    net['conv14_2_mbox_loc_reshape'] = Reshape((-1, 4), name='conv14_2_mbox_loc_reshape')(net['conv14_2_mbox_loc'])
+    net['conv15_2_mbox_loc_reshape'] = Reshape((-1, 4), name='conv15_2_mbox_loc_reshape')(net['conv15_2_mbox_loc'])
+    net['conv16_2_mbox_loc_reshape'] = Reshape((-1, 4), name='conv16_2_mbox_loc_reshape')(net['conv16_2_mbox_loc'])
+    net['conv17_2_mbox_loc_reshape'] = Reshape((-1, 4), name='conv17_2_mbox_loc_reshape')(net['conv17_2_mbox_loc'])
+
+    # Reshape the anchor box tensors, yielding 3D tensors of shape `(batch, height * width * n_boxes, 8)`
+    net["conv11_norm_mbox_priorbox_reshape"] = Reshape((-1, 8), name='conv11_norm_mbox_priorbox_reshape')(
+        net["conv11_norm_mbox_priorbox"])
+    net["conv13_norm_mbox_priorbox_reshape"] = Reshape((-1, 8), name='conv13_norm_mbox_priorbox_reshape')(
+        net["conv13_norm_mbox_priorbox"])
+    net["conv14_2_norm_mbox_priorbox_reshape"] = Reshape((-1, 8), name='conv14_2_norm_mbox_priorbox_reshape')(
+        net["conv14_2_norm_mbox_priorbox"])
+    net["conv15_2_norm_mbox_priorbox_reshape"] = Reshape((-1, 8), name='conv15_2_norm_mbox_priorbox_reshape')(
+        net["conv15_2_norm_mbox_priorbox"])
+    net["conv16_2_norm_mbox_priorbox_reshape"] = Reshape((-1, 8), name='conv16_2_norm_mbox_priorbox_reshape')(
+        net["conv16_2_norm_mbox_priorbox"])
+    net["conv17_2_norm_mbox_priorbox_reshape"] = Reshape((-1, 8), name='conv17_2_norm_mbox_priorbox_reshape')(
+        net["conv17_2_norm_mbox_priorbox"])
     ### Concatenate the predictions from the different layers
     # Axis 0 (batch) and axis 2 (n_classes or 4, respectively) are identical for all layer predictions,
     # so we want to concatenate along axis 1, the number of boxes per layer
     # Output shape of `mbox_conf`: (batch, n_boxes_total, n_classes)
-    mbox_conf = Concatenate(axis=1, name='mbox_conf')([net['conv11_mbox_conf'],
-                                                       net['conv13_mbox_conf'],
-                                                       net['conv14_2_mbox_conf'],
-                                                       net['conv15_2_mbox_conf'],
-                                                       net['conv16_2_mbox_conf'],
-                                                       net['conv17_2_mbox_conf']])
+    mbox_conf = Concatenate(axis=1, name='mbox_conf')([net['conv11_mbox_conf_reshape'],
+                                                       net['conv13_mbox_conf_reshape'],
+                                                       net['conv14_2_mbox_conf_reshape'],
+                                                       net['conv15_2_mbox_conf_reshape'],
+                                                       net['conv16_2_mbox_conf_reshape'],
+                                                       net['conv17_2_mbox_conf_reshape']])
 
     # Output shape of `mbox_loc`: (batch, n_boxes_total, 4)
-    mbox_loc = Concatenate(axis=1, name='mbox_loc')([net['conv11_mbox_loc'],
-                                                     net['conv13_mbox_loc'],
-                                                     net['conv14_2_mbox_loc'],
-                                                     net['conv15_2_mbox_loc'],
-                                                     net['conv16_2_mbox_loc'],
-                                                     net['conv17_2_mbox_loc']])
+    mbox_loc = Concatenate(axis=1, name='mbox_loc')([net['conv11_mbox_loc_reshape'],
+                                                     net['conv13_mbox_loc_reshape'],
+                                                     net['conv14_2_mbox_loc_reshape'],
+                                                     net['conv15_2_mbox_loc_reshape'],
+                                                     net['conv16_2_mbox_loc_reshape'],
+                                                     net['conv17_2_mbox_loc_reshape']])
 
     # Output shape of `mbox_priorbox`: (batch, n_boxes_total, 8)
-    mbox_priorbox = Concatenate(axis=1, name='mbox_priorbox')([net["conv11_norm_mbox_priorbox"],
-                                                               net["conv13_norm_mbox_priorbox"],
-                                                               net["conv14_2_norm_mbox_priorbox"],
-                                                               net["conv15_2_norm_mbox_priorbox"],
-                                                               net["conv16_2_norm_mbox_priorbox"],
-                                                               net["conv17_2_norm_mbox_priorbox"]])
+    mbox_priorbox = Concatenate(axis=1, name='mbox_priorbox')([net["conv11_norm_mbox_priorbox_reshape"],
+                                                               net["conv13_norm_mbox_priorbox_reshape"],
+                                                               net["conv14_2_norm_mbox_priorbox_reshape"],
+                                                               net["conv15_2_norm_mbox_priorbox_reshape"],
+                                                               net["conv16_2_norm_mbox_priorbox_reshape"],
+                                                               net["conv17_2_norm_mbox_priorbox_reshape"]])
 
     # The box coordinate predictions will go into the loss function just the way they are,
     # but for the class predictions, we'll apply a softmax activation layer first
@@ -812,7 +862,7 @@ def build_mb1_ssd300_model(image_size,
     predictions = Concatenate(axis=2, name='predictions')([mbox_conf_softmax, mbox_loc, mbox_priorbox])
 
     if mode == 'training':
-        model = Model(inputs=base_model.input, outputs=predictions)
+        model = Model(inputs=net['input'], outputs=predictions)
     elif mode == 'inference':
         decoded_predictions = DecodeDetections(confidence_thresh=confidence_thresh,
                                                iou_threshold=iou_threshold,
@@ -823,7 +873,7 @@ def build_mb1_ssd300_model(image_size,
                                                img_height=img_height,
                                                img_width=img_width,
                                                name='decoded_predictions')(predictions)
-        model = Model(inputs=base_model.input, outputs=decoded_predictions)
+        model = Model(inputs=net['input'], outputs=decoded_predictions)
     elif mode == 'inference_fast':
         decoded_predictions = DecodeDetectionsFast(confidence_thresh=confidence_thresh,
                                                    iou_threshold=iou_threshold,
@@ -851,6 +901,326 @@ def build_mb1_ssd300_model(image_size,
         return model
 
 
+def build_mb2_ssd300_model(image_size,
+                           n_classes,
+                           mode='training',
+                           l2_regularization=0.0005,
+                           min_scale=None,
+                           max_scale=None,
+                           scales=None,
+                           aspect_ratios_global=None,
+                           aspect_ratios_per_layer=[[1.0, 2.0, 0.5],
+                                                    [1.0, 2.0, 0.5, 3.0, 1.0 / 3.0],
+                                                    [1.0, 2.0, 0.5, 3.0, 1.0 / 3.0],
+                                                    [1.0, 2.0, 0.5, 3.0, 1.0 / 3.0],
+                                                    [1.0, 2.0, 0.5],
+                                                    [1.0, 2.0, 0.5]],
+                           two_boxes_for_ar1=True,
+                           steps=[8, 16, 32, 64, 100, 300],
+                           offsets=None,
+                           clip_boxes=False,
+                           variances=[0.1, 0.1, 0.2, 0.2],
+                           coords='centroids',
+                           normalize_coords=True,
+                           subtract_mean=[123, 117, 104],
+                           divide_by_stddev=None,
+                           swap_channels=[2, 1, 0],
+                           confidence_thresh=0.01,
+                           iou_threshold=0.45,
+                           top_k=200,
+                           nms_max_output_size=400,
+                           return_predictor_sizes=False):
+    # 用于预测的多特征层数
+    n_predictor_layers = 6  # The number of predictor conv layers in the network is 6 for the original SSD300.
+    n_classes += 1  # Account for the background class.
+    l2_reg = l2_regularization  # Make the internal name shorter.
+    img_height, img_width, img_channels = image_size[0], image_size[1], image_size[2]
+
+    ############################################################################
+    # Get a few exceptions out of the way.
+    ############################################################################
+    # 先验框比例
+    if aspect_ratios_global is None and aspect_ratios_per_layer is None:
+        raise ValueError(
+            "`aspect_ratios_global` and `aspect_ratios_per_layer` cannot both be None. At least one needs to be specified.")
+    if aspect_ratios_per_layer:
+        if len(aspect_ratios_per_layer) != n_predictor_layers:
+            raise ValueError(
+                "It must be either aspect_ratios_per_layer is None or len(aspect_ratios_per_layer) == {}, but len(aspect_ratios_per_layer) == {}.".format(
+                    n_predictor_layers, len(aspect_ratios_per_layer)))
+
+    if (min_scale is None or max_scale is None) and scales is None:
+        raise ValueError("Either `min_scale` and `max_scale` or `scales` need to be specified.")
+    # default box相对于图片大小尺寸
+    if scales:
+        if len(scales) != n_predictor_layers + 1:
+            raise ValueError("It must be either scales is None or len(scales) == {}, but len(scales) == {}.".format(
+                n_predictor_layers + 1, len(scales)))
+    else:  # If no explicit list of scaling factors was passed, compute the list of scaling factors from `min_scale` and `max_scale`
+        scales = np.linspace(min_scale, max_scale, n_predictor_layers + 1)
+    # max default box权重
+    if len(variances) != 4:
+        raise ValueError("4 variance values must be pased, but {} values were received.".format(len(variances)))
+    variances = np.array(variances)
+    if np.any(variances <= 0):
+        raise ValueError("All variances must be >0, but the variances given are {}".format(variances))
+
+    if (not (steps is None)) and (len(steps) != n_predictor_layers):
+        raise ValueError("You must provide at least one step value per predictor layer.")
+
+    if (not (offsets is None)) and (len(offsets) != n_predictor_layers):
+        raise ValueError("You must provide at least one offset value per predictor layer.")
+
+    ############################################################################
+    # Compute the anchor box parameters.
+    ############################################################################
+
+    # Set the aspect ratios for each predictor layer. These are only needed for the anchor box layers.
+    if aspect_ratios_per_layer:
+        aspect_ratios = aspect_ratios_per_layer
+    else:
+        aspect_ratios = [aspect_ratios_global] * n_predictor_layers
+
+    # Compute the number of boxes to be predicted per cell for each predictor layer.
+    # We need this so that we know how many channels the predictor layers need to have.
+    if aspect_ratios_per_layer:
+        n_boxes = []  # 各特征图prior box个数
+        for ar in aspect_ratios_per_layer:
+            if (1 in ar) & two_boxes_for_ar1:  # 是否添加大于当前特征图的1:1候选框
+                n_boxes.append(len(ar) + 1)  # 两个比例为1 的default box
+            else:
+                n_boxes.append(len(ar))
+    else:  # If only a global aspect ratio list was passed, then the number of boxes is the same for each predictor layer
+        if (1 in aspect_ratios_global) & two_boxes_for_ar1:
+            n_boxes = len(aspect_ratios_global) + 1
+        else:
+            n_boxes = len(aspect_ratios_global)
+        n_boxes = [n_boxes] * n_predictor_layers
+
+    if steps is None:
+        steps = [None] * n_predictor_layers
+    if offsets is None:
+        offsets = [None] * n_predictor_layers
+
+    # 构建基础网络
+    # mb2_basenet = build_base_mb2_ssd300(image_size=image_size, l2_regularization=l2_regularization)
+    # mb2_basenet.summary()
+    from tensorflow.keras.applications.mobilenet_v2 import MobileNetV2
+    img_height, img_width, img_channels = image_size[0], image_size[1], image_size[2]
+    l2_reg = l2_regularization
+    mobilenet_input_shape = (224, 224, 3)
+    net = {}
+    base_mb2 = MobileNetV2(input_shape=mobilenet_input_shape, include_top=False, weights='imagenet')
+    base_model = Model(inputs=base_mb2.input, outputs=base_mb2.get_layer('block_13_expand_relu').output)
+    base_model.summary()
+    # 构建辅助卷积层和输出层
+    net = {}
+    input_x = Input(shape=image_size)
+    mobilenet_conv_dw_11_relu = base_model(input_x)
+    conv11 = Conv2D(512, (1, 1), padding='same', name='conv11')(mobilenet_conv_dw_11_relu)
+    conv11_bn = BatchNormalization(momentum=0.99, name='bn11')(conv11)
+    conv11_re = Activation('relu')(conv11_bn)
+    # Block
+    # (19,19)
+    conv12dw = SeparableConv2D(512, (3, 3), strides=(2, 2), padding='same', name='conv12dw')(conv11_re)
+    conv12dw = BatchNormalization(momentum=0.99, name='bn12dw')(conv12dw)
+    conv12dw = Activation('relu')(conv12dw)
+    conv12 = Conv2D(1024, (1, 1), padding='same', name='conv12')(conv12dw)
+    conv12 = BatchNormalization(momentum=0.99, name='bn12')(conv12)
+    conv12 = Activation('relu')(conv12)
+    conv13dw = SeparableConv2D(1024, (3, 3), padding='same', name='conv13dw')(conv12)
+    conv13dw = BatchNormalization(momentum=0.99, name='bn13dw')(conv13dw)
+    conv13dw = Activation('relu')(conv13dw)
+    conv13 = Conv2D(1024, (1, 1), padding='same', name='conv13')(conv13dw)
+    conv13 = BatchNormalization(momentum=0.99, name='bn13')(conv13)
+    conv13 = Activation('relu')(conv13)
+    conv14_1 = Conv2D(256, (1, 1), padding='same', name='conv14_1')(conv13)
+    conv14_1 = BatchNormalization(momentum=0.99, name='bn14_1')(conv14_1)
+    conv14_1 = Activation('relu')(conv14_1)
+    conv14_2 = Conv2D(512, (3, 3), strides=(2, 2), padding='same', name='conv14_2')(conv14_1)
+    conv14_2 = BatchNormalization(momentum=0.99, name='bn14_2')(conv14_2)
+    conv14_2 = Activation('relu')(conv14_2)
+    conv15_1 = Conv2D(128, (1, 1), padding='same', name='conv15_1')(conv14_2)
+    conv15_1 = BatchNormalization(momentum=0.99, name='bn15_1')(conv15_1)
+    conv15_1 = Activation('relu')(conv15_1)
+    conv15_2 = Conv2D(256, (3, 3), strides=(2, 2), padding='same', name='conv15_2')(conv15_1)
+    conv15_2 = BatchNormalization(momentum=0.99, name='bn15_2')(conv15_2)
+    conv15_2 = Activation('relu')(conv15_2)
+    conv16_1 = Conv2D(128, (1, 1), padding='same', name='conv16_1')(conv15_2)
+    conv16_1 = BatchNormalization(momentum=0.99, name='bn16_1')(conv16_1)
+    conv16_1 = Activation('relu')(conv16_1)
+    conv16_2 = Conv2D(256, (3, 3), strides=(2, 2), padding='same', name='conv16_2')(conv16_1)
+    nconv16_2 = BatchNormalization(momentum=0.99, name='bn16_2')(conv16_2)
+    conv16_2 = Activation('relu')(conv16_2)
+    conv17_1 = Conv2D(64, (1, 1), padding='same', name='conv17_1')(conv16_2)
+    conv17_1 = BatchNormalization(momentum=0.99, name='bn17_1')(conv17_1)
+    conv17_1 = Activation('relu')(conv17_1)
+    conv17_2 = Conv2D(128, (3, 3), strides=(2, 2), padding='same', name='conv17_2')(conv17_1)
+    conv17_2 = BatchNormalization(momentum=0.99, name='bn17_2')(conv17_2)
+    conv17_2 = Activation('relu')(conv17_2)
+
+    # Prediction from conv11
+    conv11_mbox_loc = Conv2D(n_boxes[0] * 4, (1, 1), padding='same', name='conv11_mbox_loc')(conv11)
+    conv13_mbox_loc = Conv2D(n_boxes[1] * 4, (1, 1), padding='same', name='conv13_mbox_loc')(conv13)
+    conv14_2_mbox_loc = Conv2D(n_boxes[2] * 4, (1, 1), padding='same', name='conv14_2_mbox_loc')(conv14_2)
+    conv15_2_mbox_loc = Conv2D(n_boxes[3] * 4, (1, 1), padding='same', name='conv15_2_mbox_loc')(conv15_2)
+    conv16_2_mbox_loc = Conv2D(n_boxes[4] * 4, (1, 1), padding='same', name='conv16_2_mbox_loc')(conv16_2)
+    conv17_2_mbox_loc = Conv2D(n_boxes[5] * 4, (1, 1), padding='same', name='conv17_2_mbox_loc')(conv17_2)
+
+
+    conv11_mbox_conf = Conv2D(n_boxes[0] * n_classes, (1, 1), padding='same', name='conv11_mbox_conf')(conv11)
+    conv13_mbox_conf = Conv2D(n_boxes[1] * n_classes, (1, 1), padding='same', name='conv13_mbox_conf')(conv13)
+    conv14_2_mbox_conf = Conv2D(n_boxes[2] * n_classes, (1, 1), padding='same', name='conv14_2_mbox_conf')(conv14_2)
+    conv15_2_mbox_conf = Conv2D(n_boxes[3] * n_classes, (1, 1), padding='same', name='conv15_2_mbox_conf')(conv15_2)
+    conv16_2_mbox_conf = Conv2D(n_boxes[4] * n_classes, (1, 1), padding='same', name='conv16_2_mbox_conf')(conv16_2)
+    conv17_2_mbox_conf = Conv2D(n_boxes[5] * n_classes, (1, 1), padding='same', name='conv17_2_mbox_conf')(conv17_2)
+
+
+    # Output shape of anchors: `(batch, height, width, n_boxes, 8)`
+    conv11_norm_mbox_priorbox = AnchorBoxes(img_height, img_width, this_scale=scales[0], next_scale=scales[1],
+                                            aspect_ratios=aspect_ratios[0],
+                                            two_boxes_for_ar1=two_boxes_for_ar1, this_steps=steps[0],
+                                            this_offsets=offsets[0], clip_boxes=clip_boxes,
+                                            variances=variances, coords=coords, normalize_coords=normalize_coords,
+                                            name='conv4_3_norm_mbox_priorbox')(conv11_mbox_loc)
+    conv13_norm_mbox_priorbox = AnchorBoxes(img_height, img_width, this_scale=scales[1], next_scale=scales[2],
+                                            aspect_ratios=aspect_ratios[1],
+                                            two_boxes_for_ar1=two_boxes_for_ar1, this_steps=steps[1],
+                                            this_offsets=offsets[1],
+                                            clip_boxes=clip_boxes,
+                                            variances=variances, coords=coords, normalize_coords=normalize_coords,
+                                            name='fc7_mbox_priorbox')(conv13_mbox_loc)
+    conv14_2_norm_mbox_priorbox = AnchorBoxes(img_height, img_width, this_scale=scales[2], next_scale=scales[3],
+                                              aspect_ratios=aspect_ratios[2],
+                                              two_boxes_for_ar1=two_boxes_for_ar1, this_steps=steps[2],
+                                              this_offsets=offsets[2], clip_boxes=clip_boxes,
+                                              variances=variances, coords=coords, normalize_coords=normalize_coords,
+                                              name='conv6_2_mbox_priorbox')(conv14_2_mbox_loc)
+    conv15_2_norm_mbox_priorbox = AnchorBoxes(img_height, img_width, this_scale=scales[3], next_scale=scales[4],
+                                              aspect_ratios=aspect_ratios[3],
+                                              two_boxes_for_ar1=two_boxes_for_ar1, this_steps=steps[3],
+                                              this_offsets=offsets[3], clip_boxes=clip_boxes,
+                                              variances=variances, coords=coords, normalize_coords=normalize_coords,
+                                              name='conv15_2_mbox_priorbox')(conv15_2_mbox_loc)
+    conv16_2_norm_mbox_priorbox = AnchorBoxes(img_height, img_width, this_scale=scales[4], next_scale=scales[5],
+                                              aspect_ratios=aspect_ratios[4],
+                                              two_boxes_for_ar1=two_boxes_for_ar1, this_steps=steps[4],
+                                              this_offsets=offsets[4], clip_boxes=clip_boxes,
+                                              variances=variances, coords=coords, normalize_coords=normalize_coords,
+                                              name='conv16_2_mbox_priorbox')(conv16_2_mbox_loc)
+    conv17_2_norm_mbox_priorbox = AnchorBoxes(img_height, img_width, this_scale=scales[5], next_scale=scales[6],
+                                              aspect_ratios=aspect_ratios[5],
+                                              two_boxes_for_ar1=two_boxes_for_ar1, this_steps=steps[5],
+                                              this_offsets=offsets[5], clip_boxes=clip_boxes,
+                                              variances=variances, coords=coords, normalize_coords=normalize_coords,
+                                              name='conv17_2_mbox_priorbox')(conv17_2_mbox_loc)
+
+    ### Reshape
+    # Reshape the class predictions, yielding 3D tensors of shape `(batch, height * width * n_boxes, n_classes)`
+    # We want the classes isolated in the last axis to perform softmax on them
+    conv11_mbox_conf_reshape = Reshape((-1, n_classes), name='conv11_norm_mbox_conf_reshape')(conv11_mbox_conf)
+    conv13_mbox_conf_reshape = Reshape((-1, n_classes), name='conv13_mbox_conf_reshape')(conv13_mbox_conf)
+    conv14_2_mbox_conf_reshape = Reshape((-1, n_classes), name='conv14_2_mbox_conf_reshape')(conv14_2_mbox_conf)
+    conv15_2_mbox_conf_reshape = Reshape((-1, n_classes), name='conv15_2_mbox_conf_reshape')(conv15_2_mbox_conf)
+    conv16_2_mbox_conf_reshape = Reshape((-1, n_classes), name='conv16_2_mbox_conf_reshape')(conv16_2_mbox_conf)
+    conv17_2_mbox_conf_reshape = Reshape((-1, n_classes), name='conv17_2_mbox_conf_reshape')(conv17_2_mbox_conf)
+
+    # Reshape the box predictions, yielding 3D tensors of shape `(batch, height * width * n_boxes, 4)`
+    # We want the four box coordinates isolated in the last axis to compute the smooth L1 loss
+    conv11_mbox_loc_reshape = Reshape((-1, 4), name='conv11_norm_mbox_loc_reshape')(conv11_mbox_loc)
+    conv13_mbox_loc_reshape = Reshape((-1, 4), name='conv13_mbox_loc_reshape')(conv13_mbox_loc)
+    conv14_2_mbox_loc_reshape = Reshape((-1, 4), name='conv14_2_mbox_loc_reshape')(conv14_2_mbox_loc)
+    conv15_2_mbox_loc_reshape = Reshape((-1, 4), name='conv15_2_mbox_loc_reshape')(conv15_2_mbox_loc)
+    conv16_2_mbox_loc_reshape = Reshape((-1, 4), name='conv16_2_mbox_loc_reshape')(conv16_2_mbox_loc)
+    conv17_2_mbox_loc_reshape = Reshape((-1, 4), name='conv17_2_mbox_loc_reshape')(conv17_2_mbox_loc)
+
+    # Reshape the anchor box tensors, yielding 3D tensors of shape `(batch, height * width * n_boxes, 8)`
+    conv11_norm_mbox_priorbox_reshape = Reshape((-1, 8), name='conv11_norm_mbox_priorbox_reshape')(
+        conv11_norm_mbox_priorbox)
+    conv13_norm_mbox_priorbox_reshape = Reshape((-1, 8), name='conv13_norm_mbox_priorbox_reshape')(
+        conv13_norm_mbox_priorbox)
+    conv14_2_norm_mbox_priorbox_reshape = Reshape((-1, 8), name='conv14_2_norm_mbox_priorbox_reshape')(
+        conv14_2_norm_mbox_priorbox)
+    conv15_2_norm_mbox_priorbox_reshape = Reshape((-1, 8), name='conv15_2_norm_mbox_priorbox_reshape')(
+        conv15_2_norm_mbox_priorbox)
+    conv16_2_norm_mbox_priorbox_reshape = Reshape((-1, 8), name='conv16_2_norm_mbox_priorbox_reshape')(
+        conv16_2_norm_mbox_priorbox)
+    conv17_2_norm_mbox_priorbox_reshape = Reshape((-1, 8), name='conv17_2_norm_mbox_priorbox_reshape')(
+        conv17_2_norm_mbox_priorbox)
+    ### Concatenate the predictions from the different layers
+    # Axis 0 (batch) and axis 2 (n_classes or 4, respectively) are identical for all layer predictions,
+    # so we want to concatenate along axis 1, the number of boxes per layer
+    # Output shape of `mbox_conf`: (batch, n_boxes_total, n_classes)
+    mbox_conf = Concatenate(axis=1, name='mbox_conf')([conv11_mbox_conf_reshape,
+                                                       conv13_mbox_conf_reshape,
+                                                       conv14_2_mbox_conf_reshape,
+                                                       conv15_2_mbox_conf_reshape,
+                                                       conv16_2_mbox_conf_reshape,
+                                                       conv17_2_mbox_conf_reshape])
+
+    # Output shape of `mbox_loc`: (batch, n_boxes_total, 4)
+    mbox_loc = Concatenate(axis=1, name='mbox_loc')([conv11_mbox_loc_reshape,
+                                                     conv13_mbox_loc_reshape,
+                                                     conv14_2_mbox_loc_reshape,
+                                                     conv15_2_mbox_loc_reshape,
+                                                     conv16_2_mbox_loc_reshape,
+                                                     conv17_2_mbox_loc_reshape])
+
+    # Output shape of `mbox_priorbox`: (batch, n_boxes_total, 8)
+    mbox_priorbox = Concatenate(axis=1, name='mbox_priorbox')([conv11_norm_mbox_priorbox_reshape,
+                                                               conv13_norm_mbox_priorbox_reshape,
+                                                               conv14_2_norm_mbox_priorbox_reshape,
+                                                               conv15_2_norm_mbox_priorbox_reshape,
+                                                               conv16_2_norm_mbox_priorbox_reshape,
+                                                               conv17_2_norm_mbox_priorbox_reshape])
+
+    # The box coordinate predictions will go into the loss function just the way they are,
+    # but for the class predictions, we'll apply a softmax activation layer first
+    mbox_conf_softmax = Activation('softmax', name='mbox_conf_softmax')(mbox_conf)
+
+    # Concatenate the class and box predictions and the anchors to one large predictions vector
+    # Output shape of `predictions`: (batch, n_boxes_total, n_classes + 4 + 8)
+    predictions = Concatenate(axis=2, name='predictions')([mbox_conf_softmax, mbox_loc, mbox_priorbox])
+
+    if mode == 'training':
+        model = Model(inputs=input_x, outputs = predictions)
+    elif mode == 'inference':
+        decoded_predictions = DecodeDetections(confidence_thresh=confidence_thresh,
+        iou_threshold = iou_threshold,
+        top_k = top_k,
+        nms_max_output_size = nms_max_output_size,
+        coords = coords,
+        normalize_coords = normalize_coords,
+        img_height = img_height,
+        img_width = img_width,
+        name = 'decoded_predictions')(predictions)
+        model = Model(inputs=net['input'], outputs=decoded_predictions)
+    elif mode == 'inference_fast':
+        decoded_predictions = DecodeDetectionsFast(confidence_thresh=confidence_thresh,
+        iou_threshold = iou_threshold,
+        top_k = top_k,
+        nms_max_output_size = nms_max_output_size,
+        coords = coords,
+        normalize_coords = normalize_coords,
+        img_height = img_height,
+        img_width = img_width,
+        name = 'decoded_predictions')(predictions)
+        model = Model(inputs=base_model.input, outputs=decoded_predictions)
+    else:
+        raise ValueError(
+            "`mode` must be one of 'training', 'inference' or 'inference_fast', but received '{}'.".format(mode))
+
+    if return_predictor_sizes:
+        predictor_sizes = np.array([net['conv11_mbox_conf']._keras_shape[1:3],
+                                    net['conv13_mbox_conf']._keras_shape[1:3],
+                                    net['conv14_2_mbox_conf']._keras_shape[1:3],
+                                    net['conv15_2_mbox_conf']._keras_shape[1:3],
+                                    net['conv16_2_mbox_conf']._keras_shape[1:3],
+                                    net['conv17_2_mbox_conf']._keras_shape[1:3]])
+        return model, predictor_sizes
+    else:
+        return model
+
 model_mapping = {
     "ssd_7": build_ssd_7_model,
     "vgg_ssd": build_vgg_ssd300_model,
@@ -862,13 +1232,15 @@ model_mapping = {
 if __name__ == "__main__":
     ### vgg_ssd300 配置参数
     import os
-    os.environ["CUDA_VISIBLE_DEVICES"]="1"
+
+    os.environ["CUDA_VISIBLE_DEVICES"] = "1"
     img_height = 300  # Height of the model input images
     img_width = 300  # Width of the model input images
     img_channels = 3  # Number of color channels of the model input images
     mean_color = [123, 117,
                   104]  # The per-channel mean of the images in the dataset. Do not change this value if you're using any of the pre-trained weights.
-    swap_channels = [2, 1,0]  # The color channel order in the original SSD is BGR, so we'll have the model reverse the color channel order of the input images.
+    swap_channels = [2, 1,
+                     0]  # The color channel order in the original SSD is BGR, so we'll have the model reverse the color channel order of the input images.
     n_classes = 20  # Number of positive classes, e.g. 20 for Pascal VOC, 80 for MS COCO
     scales_pascal = [0.1, 0.2, 0.37, 0.54, 0.71, 0.88,
                      1.05]  # The anchor box scaling factors used in the original SSD300 for the Pascal VOC datasets
@@ -906,18 +1278,18 @@ if __name__ == "__main__":
     #                             normalize_coords=normalize_coords,
     #                             subtract_mean=mean_color,
     #                             swap_channels=swap_channels)
-    model = build_mb1_ssd300_model(image_size=(img_height, img_width, img_channels),
-                                n_classes=n_classes,
-                                mode='training',
-                                l2_regularization=0.0005,
-                                scales=scales,
-                                aspect_ratios_per_layer=aspect_ratios,
-                                two_boxes_for_ar1=two_boxes_for_ar1,
-                                steps=steps,
-                                offsets=offsets,
-                                clip_boxes=clip_boxes,
-                                variances=variances,
-                                normalize_coords=normalize_coords,
-                                subtract_mean=mean_color,
-                                swap_channels=swap_channels)
+    model = build_mb2_ssd300_model(image_size=(img_height, img_width, img_channels),
+                                   n_classes=n_classes,
+                                   mode='training',
+                                   l2_regularization=0.0005,
+                                   scales=scales,
+                                   aspect_ratios_per_layer=aspect_ratios,
+                                   two_boxes_for_ar1=two_boxes_for_ar1,
+                                   steps=steps,
+                                   offsets=offsets,
+                                   clip_boxes=clip_boxes,
+                                   variances=variances,
+                                   normalize_coords=normalize_coords,
+                                   subtract_mean=mean_color,
+                                   swap_channels=swap_channels)
     model.summary()

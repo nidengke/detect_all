@@ -9,11 +9,13 @@ from math import ceil
 import numpy as np
 from matplotlib import pyplot as plt
 
+
+import tensorflow as tf
 from tensorflow.keras.optimizers import Adam, SGD
 from tensorflow.keras.callbacks import ModelCheckpoint, LearningRateScheduler, TerminateOnNaN, CSVLogger
 from tensorflow.keras.models import load_model
 
-from models.ssd.build_ssd_model import build_vgg_ssd300_model
+from models.ssd.build_ssd_model import build_vgg_ssd300_model,build_mb1_ssd300_model,build_mb2_ssd300_model
 from keras_loss_function.ssd_loss import SSDLoss
 
 from encoder_decoder.ssd_encoder_decoder.ssd_input_encoder import SSDInputEncoder
@@ -37,7 +39,14 @@ print("config info:",
       vgg_ssd300.l2_regularization,
       type(vgg_ssd300.l2_regularization)
       )
-model = build_vgg_ssd300_model(vgg_ssd300.image_size,
+model_name = 'mb2_ssd300'
+model_mapping={
+    'vgg_ssd300':build_vgg_ssd300_model,
+    'mb1_ssd300':build_mb1_ssd300_model,
+    'mb2_ssd300':build_mb2_ssd300_model
+}
+
+model = model_mapping[model_name](vgg_ssd300.image_size,
                                n_classes=vgg_ssd300.n_classes,
                                mode=vgg_ssd300.mode,
                                l2_regularization=vgg_ssd300.l2_regularization,
@@ -54,6 +63,11 @@ model = build_vgg_ssd300_model(vgg_ssd300.image_size,
                                swap_channels=vgg_ssd300.swap_channels)
 
 print(model.name)
+for layer in model.layers:
+    layer.trainable = True
+model.summary()
+
+# print(model.trainable_variables)
 # 2 加载权重
 weights_path = './weights/VGG_ILSVRC_16_layers_fc_reduced.h5'
 try:
@@ -167,12 +181,29 @@ resize = Resize(height=vgg_ssd300.image_size[0], width=vgg_ssd300.image_size[1])
 # 5: Instantiate an encoder that can encode ground truth labels into the format needed by the SSD loss function.
 
 # The encoder constructor needs the spatial dimensions of the model's predictor layers to create the anchor boxes.
-predictor_sizes = [model.get_layer('conv4_3_norm_mbox_conf').output_shape[1:3],
-                   model.get_layer('fc7_mbox_conf').output_shape[1:3],
-                   model.get_layer('conv6_2_mbox_conf').output_shape[1:3],
-                   model.get_layer('conv7_2_mbox_conf').output_shape[1:3],
-                   model.get_layer('conv8_2_mbox_conf').output_shape[1:3],
-                   model.get_layer('conv9_2_mbox_conf').output_shape[1:3]]
+
+if model_name=='vgg_ssd300':
+    predictor_sizes = [model.get_layer('conv4_3_norm_mbox_conf').output_shape[1:3],
+                       model.get_layer('fc7_mbox_conf').output_shape[1:3],
+                       model.get_layer('conv6_2_mbox_conf').output_shape[1:3],
+                       model.get_layer('conv7_2_mbox_conf').output_shape[1:3],
+                       model.get_layer('conv8_2_mbox_conf').output_shape[1:3],
+                       model.get_layer('conv9_2_mbox_conf').output_shape[1:3]]
+elif model_name == 'mb1_ssd300':
+    predictor_sizes = np.array([model.get_layer('conv11_mbox_conf').output_shape[1:3],
+                                model.get_layer('conv13_mbox_conf').output_shape[1:3],
+                                model.get_layer('conv14_2_mbox_conf').output_shape[1:3],
+                                model.get_layer('conv15_2_mbox_conf').output_shape[1:3],
+                                model.get_layer('conv16_2_mbox_conf').output_shape[1:3],
+                                model.get_layer('conv17_2_mbox_conf').output_shape[1:3]])
+
+elif model_name == 'mb2_ssd300':
+    predictor_sizes = np.array([model.get_layer('conv11_mbox_conf').output_shape[1:3],
+                                model.get_layer('conv13_mbox_conf').output_shape[1:3],
+                                model.get_layer('conv14_2_mbox_conf').output_shape[1:3],
+                                model.get_layer('conv15_2_mbox_conf').output_shape[1:3],
+                                model.get_layer('conv16_2_mbox_conf').output_shape[1:3],
+                                model.get_layer('conv17_2_mbox_conf').output_shape[1:3]])
 
 ssd_input_encoder = SSDInputEncoder(img_height=vgg_ssd300.image_size[0],
                                     img_width=vgg_ssd300.image_size[1],
@@ -215,7 +246,6 @@ val_dataset_size = val_dataset.get_dataset_size()
 
 print("Number of images in the training dataset:\t{:>6}".format(train_dataset_size))
 print("Number of images in the validation dataset:\t{:>6}".format(val_dataset_size))
-
 
 # Define a learning rate schedule.
 

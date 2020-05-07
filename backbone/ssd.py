@@ -119,16 +119,15 @@ def build_base_ssd_7(image_size,
 
 
 def build_base_vgg_ssd300(image_size,
+                          input_x,
                       l2_regularization=0.0,
                       subtract_mean=None,
                       divide_by_stddev=None,
                       swap_channels=False):
     img_height, img_width, img_channels = image_size[0], image_size[1], image_size[2]
     l2_reg = l2_regularization
-    x = Input(shape=(img_height, img_width, img_channels))
-
     # The following identity layer is only needed so that the subsequent lambda layers can be optional.
-    x1 = Lambda(identity_layer, output_shape=(img_height, img_width, img_channels), name='identity_layer')(x)
+    x1 = Lambda(identity_layer, output_shape=(img_height, img_width, img_channels), name='identity_layer')(input_x)
     if not (subtract_mean is None):
         x1 = Lambda(input_mean_normalization, output_shape=(img_height, img_width, img_channels),
                     name='input_mean_normalization')(x1)
@@ -205,10 +204,10 @@ def build_base_vgg_ssd300(image_size,
 
     # Feed conv4_3 into the L2 normalization layer
     # conv4_3_norm = L2Normalization(gamma_init=20, name='conv4_3_norm')(conv4_3)
-    base_model = Model(inputs=x, outputs=conv9_2)
+    base_model = Model(inputs=input_x, outputs=conv9_2)
     return base_model
 
-# TODO 构建mb1 ssd
+
 def build_base_mb1_ssd300(image_size,
                       l2_regularization=0.0,
                       subtract_mean=None,
@@ -231,14 +230,20 @@ def build_base_mb1_ssd300(image_size,
     base_mb1 = MobileNet(input_shape=mobilenet_input_shape, include_top=False, weights='imagenet')
     return base_mb1
 
-# TODO 构建mb2 ssd
-def build_base_mb2_ssd(image_size,
+
+def build_base_mb2_ssd300(image_size,
                       l2_regularization=0.0,
                       subtract_mean=None,
                       divide_by_stddev=None,
                       swap_channels=False):
+    from tensorflow.keras.applications.mobilenet_v2 import MobileNetV2
     img_height, img_width, img_channels = image_size[0], image_size[1], image_size[2]
     l2_reg = l2_regularization
+    mobilenet_input_shape = (224, 224, 3)
+    net = {}
+    base_mb2 = MobileNetV2(input_shape=mobilenet_input_shape, include_top=False, weights='imagenet')
+    return base_mb2
+
 
 # TODO 构建mb3 ssd
 def build_base_mb3_ssd(image_size,
