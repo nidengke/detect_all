@@ -17,7 +17,7 @@ limitations under the License.
 # import keras
 from tensorflow import keras
 import tensorflow as tf
-from eval.common import evaluate
+from eval_infer.efficientdet.common import evaluate
 
 
 class Evaluate(keras.callbacks.Callback):

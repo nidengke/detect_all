@@ -2,8 +2,8 @@
 refer:https://github.com/xuannianz/EfficientDet.git
 """
 
-import os
-
+import os,sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath("__file__"))))
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras.optimizers import Adam
@@ -52,7 +52,7 @@ def create_callbacks(training_model, prediction_model, validation_generator, eff
 
     tensorboard_callback = None
 
-    if efficientdet.tensorboard_dir:
+    if efficientdet_config.tensorboard_dir:
         if tf.version.VERSION > '2.0.0':
             file_writer = tf.summary.create_file_writer(efficientdet_config.tensorboard_dir)
             file_writer.set_as_default()
@@ -199,7 +199,6 @@ def main(args=None):
 
     # create the generators
     train_generator, validation_generator = create_generators(efficientdet_config)
-
     num_classes = train_generator.num_classes()
     num_anchors = train_generator.num_anchors
 

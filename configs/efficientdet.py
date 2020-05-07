@@ -1,5 +1,5 @@
 dataset_type = 'pascal'  # "coco"
-data_path = '/Data/jing/VOCdevkit'
+pascal_path = '/Data/jing/VOCdevkit/VOC2012'
 detect_quadrangle = False
 detect_text = False
 snapshot = 'imagenet'  # Resume training from a snapshot.')
@@ -15,7 +15,9 @@ steps = 10000
 snapshot_path = '/Data/jing/weights/efficientdet'  # 'Path to store snapshots of models during training',
 tensorboard_dir = '/Data/jing/weights/efficientdet'
 no_snapshots = True  # ', help='Disable saving snapshots.', dest='snapshots', action='store_false')
+snapshots=True
 no_evaluation = True  # ', help='Disable per epoch evaluation.', dest='evaluation',
+evaluation = True
 random_transform = False  # ', help='Randomly transform image and annotations.', action='store_true')
 compute_val_loss = False  # ', help='Compute validation loss during training', dest='compute_val_loss',
 

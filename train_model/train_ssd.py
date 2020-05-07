@@ -1,5 +1,6 @@
 """
-refer:
+refer:keras ssd  https://github.com/pierluigiferrari/ssd_keras.git
+
 """
 import os, sys
 os.environ["CUDA_VISIBLE_DEVICES"] = "3"
@@ -14,13 +15,8 @@ from tensorflow.keras.models import load_model
 
 from models.ssd.build_ssd_model import build_vgg_ssd300_model
 from keras_loss_function.ssd_loss import SSDLoss
-from keras_layers.keras_layer_ssd_DecodeDetections import DecodeDetections
-from keras_layers.keras_layer_ssd_DecodeDetectionsFast import DecodeDetectionsFast
-from keras_layers.keras_layer_ssd_AnchorBoxes import AnchorBoxes
-from keras_layers.keras_layer_ssd_L2Normalization import L2Normalization
 
 from encoder_decoder.ssd_encoder_decoder.ssd_input_encoder import SSDInputEncoder
-from encoder_decoder.ssd_encoder_decoder.ssd_output_decoder import decode_detections, decode_detections_fast
 
 from datasets.ssd_data_generate.object_detection_2d_data_generator import DataGenerator
 from datasets.ssd_data_generate.object_detection_2d_geometric_ops import Resize

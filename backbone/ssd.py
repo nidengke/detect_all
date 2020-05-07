@@ -209,13 +209,27 @@ def build_base_vgg_ssd300(image_size,
     return base_model
 
 # TODO 构建mb1 ssd
-def build_base_mb1_ssd(image_size,
+def build_base_mb1_ssd300(image_size,
                       l2_regularization=0.0,
                       subtract_mean=None,
                       divide_by_stddev=None,
                       swap_channels=False):
+    """
+    # refer https://github.com/tanakataiki/ssd_kerasV2.git
+    :param image_size:
+    :param l2_regularization:
+    :param subtract_mean:
+    :param divide_by_stddev:
+    :param swap_channels:
+    :return:
+    """
+    from tensorflow.keras.applications.mobilenet import MobileNet
     img_height, img_width, img_channels = image_size[0], image_size[1], image_size[2]
     l2_reg = l2_regularization
+    mobilenet_input_shape = (224, 224, 3)
+    net = {}
+    base_mb1 = MobileNet(input_shape=mobilenet_input_shape, include_top=False, weights='imagenet')
+    return base_mb1
 
 # TODO 构建mb2 ssd
 def build_base_mb2_ssd(image_size,
