@@ -39,7 +39,8 @@ print("config info:",
       vgg_ssd300.l2_regularization,
       type(vgg_ssd300.l2_regularization)
       )
-model_name = 'mb2_ssd300'
+model_name = 'vgg_ssd300'
+
 model_mapping={
     'vgg_ssd300':build_vgg_ssd300_model,
     'mb1_ssd300':build_mb1_ssd300_model,
@@ -80,12 +81,12 @@ adam = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
 sgd = SGD(lr=0.001, momentum=0.9, decay=0.0, nesterov=False)
 
 # 4 损失函数
-ssd_loss = SSDLoss(neg_pos_ratio=3, alpha=1.0)
+ssd_loss = SSDLoss(neg_pos_ratio=3, alpha=1.0,sgd=sgd,model=model)
 
 #  编译模型
 model.compile(optimizer=sgd, loss=ssd_loss.compute_loss)
 
-
+tf.keras.utils.plot_model(model,model_name+'.png',show_shapes=True,show_layer_names=True)
 
 # 5: 设置数据集路径.
 

@@ -7,10 +7,10 @@ freeze_backbone = False
 freeze_bn = False  # Freeze training of BatchNormalization layers
 weighted_bifpn = False  # Use weighted BiFPN
 batch_size = 1  # Size of the batches
-phi = 0  # Hyper parameter phi', default=0, type=int, choices=(0, 1, 2, 3, 4, 5, 6))
+phi = 4  # Hyper parameter phi', default=0, type=int, choices=(0, 1, 2, 3, 4, 5, 6))
 assert phi in [0, 1, 2, 3, 4, 5, 6]
 gpu = "2"  # Id of the GPU to use (as reported by nvidia-smi).')
-epochs = 50
+epochs = 500
 steps = 10000
 snapshot_path = '/Data/jing/weights/efficientdet'  # 'Path to store snapshots of models during training',
 tensorboard_dir = '/Data/jing/weights/efficientdet'

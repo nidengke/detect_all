@@ -20,7 +20,6 @@ from __future__ import division
 import tensorflow as tf
 from tensorflow.python.util.tf_export import keras_export
 
-
 class SSDLoss:
     '''
     The SSD loss, see https://arxiv.org/abs/1512.02325.
@@ -29,7 +28,9 @@ class SSDLoss:
     def __init__(self,
                  neg_pos_ratio=3,
                  n_neg_min=0,
-                 alpha=1.0):
+                 alpha=1.0,
+                 sgd=None,
+                 model=None):
         '''
         Arguments:
             neg_pos_ratio (int, optional): The maximum ratio of negative (i.e. background)
@@ -51,6 +52,8 @@ class SSDLoss:
         self.neg_pos_ratio = neg_pos_ratio
         self.n_neg_min = n_neg_min
         self.alpha = alpha
+        self.sgd = sgd
+        self.model = model
 
     def smooth_L1_loss(self, y_true, y_pred):
         '''
@@ -71,8 +74,7 @@ class SSDLoss:
         References:
             https://arxiv.org/abs/1504.08083
         '''
-        # @tf.function
-        absolute_loss = tf.math.square(y_true - y_pred)
+        absolute_loss = tf.abs(y_true - y_pred)
         square_loss = 0.5 * (y_true - y_pred)**2
         l1_loss = tf.where(tf.less(absolute_loss, 1.0), square_loss, absolute_loss - 0.5)
         return tf.reduce_sum(l1_loss, axis=-1)
@@ -154,7 +156,7 @@ class SSDLoss:
 
         # First, compute the classification loss for all negative boxes.
         neg_class_loss_all = classification_loss * negatives # Tensor of shape (batch_size, n_boxes)
-        n_neg_losses = tf.count_nonzero(neg_class_loss_all, dtype=tf.int32) # The number of non-zero loss entries in `neg_class_loss_all`
+        n_neg_losses = tf.math.count_nonzero(neg_class_loss_all, dtype=tf.int32) # The number of non-zero loss entries in `neg_class_loss_all`
         # What's the point of `n_neg_losses`? For the next step, which will be to compute which negative boxes enter the classification
         # loss, we don't just want to know how many negative ground truth boxes there are, but for how many of those there actually is
         # a positive (i.e. non-zero) loss. This is necessary because `tf.nn.top-k()` in the function below will pick the top k boxes with
@@ -210,5 +212,8 @@ class SSDLoss:
         # (by which we're dividing in the line above), not the batch size. So in order to revert Keras' averaging
         # over the batch size, we'll have to multiply by it.
         total_loss = total_loss * tf.cast(batch_size,dtype=tf.float32)
-
+        with tf.GradientTape() as tape:
+            loss = total_loss
+            gradients = tape.gradient(loss, self.model.trainable_variables)
+            l = self.sgd.apply_gradients(zip(gradients, self.model.trainable_variables))
         return total_loss
